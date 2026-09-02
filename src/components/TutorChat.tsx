@@ -54,8 +54,19 @@ export function TutorChat({ initialQuestion }: { initialQuestion?: string }) {
   }
 
   function listen() {
-    const Ctor = (window as unknown as { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }).SpeechRecognition
-      || (window as unknown as { webkitSpeechRecognition?: new () => any }).webkitSpeechRecognition;
+        type Rec = {
+      lang: string;
+      start: () => void;
+      onend: (() => void) | null;
+      onresult: ((event: { results: { 0: { 0: { transcript: string } } } }) => void) | null;
+    };
+    const Ctor = (
+      window as unknown as {
+        SpeechRecognition?: new () => Rec;
+        webkitSpeechRecognition?: new () => Rec;
+      }
+    ).SpeechRecognition
+      || (window as unknown as { webkitSpeechRecognition?: new () => Rec }).webkitSpeechRecognition;
     if (!Ctor) {
       alert("Speech recognition is not available in this browser. Chrome works best.");
       return;

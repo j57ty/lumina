@@ -13,7 +13,7 @@ export default async function LessonPage({
   params: Promise<{ lessonId: string }>;
 }) {
   const { lessonId } = await params;
-  const session = await auth();
+  await auth();
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
     include: {
