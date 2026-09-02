@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #08111f;
+  --ink-2: #0e1a2e;
+  --panel: #122038;
+  --line: rgba(232, 196, 132, 0.16);
+  --gold: #e8c484;
+  --gold-2: #f3d7a8;
+  --mist: #d7e0ee;
+  --mute: #93a1b8;
+}
+
+html,
+body {
+  background: var(--ink);
+  color: var(--mist);
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  background-image:
+    radial-gradient(1200px 600px at 10% -10%, rgba(232, 196, 132, 0.09), transparent 50%),
+    radial-gradient(900px 500px at 100% 0%, rgba(94, 234, 212, 0.06), transparent 45%),
+    linear-gradient(#08111f, #08111f);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.serif {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+.panel {
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(16px);
+}
+
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.prose-lesson h1,
+.prose-lesson h2 {
+  font-family: var(--font-display), Georgia, serif;
+  color: #f6efe2;
+  margin: 1.4rem 0 0.6rem;
+}
+
+.prose-lesson h2 {
+  font-size: 1.25rem;
+}
+
+.prose-lesson p,
+.prose-lesson li {
+  color: #d5deeb;
+  line-height: 1.7;
+  margin: 0.55rem 0;
+}
+
+.prose-lesson ul {
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+
+.prose-lesson code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--gold-2);
+  background: rgba(232, 196, 132, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+}
+
+.prose-lesson strong {
+  color: #fff;
+}
