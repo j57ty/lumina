@@ -241,30 +241,32 @@ Current catalog hint: ${catalogHint}`;
     { role: "user", content: question },
   ];
 
-  for (let step = 0; step < 4; step += 1) {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.4,
-        messages,
-        tools,
-        tool_choice: "auto",
-      }),
-    });
+  try {
+    for (let step = 0; step < 4; step += 1) {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.4,
+          messages,
+          tools,
+          tool_choice: "auto",
+        }),
+      });
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`LLM error ${response.status}: ${text.slice(0, 400)}`);
-    }
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`LLM error ${response.status}: ${text.slice(0, 400)}`);
+        return { reply: await localTutor(question, catalogHint), usedModel: false };
+      }
 
-    const data = await response.json();
-    const choice = data.choices?.[0]?.message;
-    if (!choice) throw new Error("LLM returned no message.");
+      const data = await response.json();
+      const choice = data.choices?.[0]?.message;
+      if (!choice) return { reply: await localTutor(question, catalogHint), usedModel: false };
 
     const toolCalls = choice.tool_calls as
       | { id: string; function: { name: string; arguments: string } }[]
@@ -295,8 +297,12 @@ Current catalog hint: ${catalogHint}`;
     if (reply) return { reply, usedModel: true };
   }
 
-  return {
-    reply: "I ran out of reasoning steps. Ask that again in a smaller piece.",
-    usedModel: true,
-  };
+    return {
+      reply: "I ran out of reasoning steps. Ask that again in a smaller piece.",
+      usedModel: true,
+    };
+  } catch (error) {
+    console.error("LLM execution error:", error);
+    return { reply: await localTutor(question, catalogHint), usedModel: false };
+  }
 }
