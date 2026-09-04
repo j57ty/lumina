@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
-    include: { questions: true },
+    include: { questions: { orderBy: { id: "asc" } } },
   });
   if (!quiz) return NextResponse.json({ error: "Quiz not found." }, { status: 404 });
 

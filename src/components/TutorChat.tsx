@@ -15,6 +15,8 @@ export function TutorChat({ initialQuestion }: { initialQuestion?: string }) {
   const bottom = useRef<HTMLDivElement>(null);
 
   const started = useRef(false);
+  const sendRef = useRef(send);
+  sendRef.current = send;
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
@@ -24,7 +26,7 @@ export function TutorChat({ initialQuestion }: { initialQuestion?: string }) {
     if (started.current) return;
     if (initialQuestion?.trim()) {
       started.current = true;
-      void send(initialQuestion);
+      void sendRef.current(initialQuestion);
     }
   }, [initialQuestion]);
 

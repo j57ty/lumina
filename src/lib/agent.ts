@@ -52,12 +52,12 @@ async function searchCurriculum(query: string) {
   const lessons = await prisma.lesson.findMany({
     where: {
       OR: [
-        { title: { contains: q } },
-        { summary: { contains: q } },
-        { content: { contains: q } },
-        { unit: { title: { contains: q } } },
-        { unit: { course: { title: { contains: q } } } },
-        { unit: { course: { subject: { contains: q } } } },
+        { title: { contains: q, mode: "insensitive" } },
+        { summary: { contains: q, mode: "insensitive" } },
+        { content: { contains: q, mode: "insensitive" } },
+        { unit: { title: { contains: q, mode: "insensitive" } } },
+        { unit: { course: { title: { contains: q, mode: "insensitive" } } } },
+        { unit: { course: { subject: { contains: q, mode: "insensitive" } } } },
       ],
     },
     take: 8,
@@ -81,7 +81,7 @@ async function getLesson(lessonId?: string, title?: string) {
       })
     : title
       ? await prisma.lesson.findFirst({
-          where: { title: { contains: title } },
+          where: { title: { contains: title, mode: "insensitive" } },
           include: { unit: { include: { course: true } }, quiz: { include: { questions: true } } },
         })
       : null;

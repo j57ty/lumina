@@ -18,7 +18,7 @@ export default async function LessonPage({
     where: { id: lessonId },
     include: {
       unit: { include: { course: true } },
-      quiz: { include: { questions: true } },
+      quiz: { include: { questions: { orderBy: { id: "asc" } } } },
     },
   });
   if (!lesson) notFound();

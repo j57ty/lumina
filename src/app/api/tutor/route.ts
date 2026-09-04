@@ -23,7 +23,15 @@ export async function POST(req: Request) {
   const userId = session.user.id;
   let conversationId = parsed.data.conversationId;
 
-  if (!conversationId) {
+  if (conversationId) {
+    const existing = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { userId: true },
+    });
+    if (!existing || existing.userId !== userId) {
+      return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    }
+  } else {
     const created = await prisma.conversation.create({
       data: {
         userId,

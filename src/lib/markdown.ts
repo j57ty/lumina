@@ -59,5 +59,5 @@ export function renderLesson(markdown: string): string {
 function em(text: string): string {
   return text
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em;");
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 }
