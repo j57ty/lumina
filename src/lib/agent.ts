@@ -107,12 +107,28 @@ async function getLesson(lessonId?: string, title?: string) {
   const lesson = lessonId
     ? await prisma.lesson.findUnique({
         where: { id: lessonId },
-        include: { unit: { include: { course: true } }, quiz: { include: { questions: true } } },
+        include: {
+          unit: {
+            include: {
+              course: true,
+              lessons: { select: { id: true, title: true, summary: true } },
+            },
+          },
+          quiz: { include: { questions: { orderBy: { id: "asc" } } } },
+        },
       })
     : title
       ? await prisma.lesson.findFirst({
           where: { title: { contains: title, mode: "insensitive" } },
-          include: { unit: { include: { course: true } }, quiz: { include: { questions: true } } },
+          include: {
+            unit: {
+              include: {
+                course: true,
+                lessons: { select: { id: true, title: true, summary: true } },
+              },
+            },
+            quiz: { include: { questions: { orderBy: { id: "asc" } } } },
+          },
         })
       : null;
   if (!lesson) return { error: "Lesson not found." };
@@ -120,9 +136,18 @@ async function getLesson(lessonId?: string, title?: string) {
     lessonId: lesson.id,
     title: lesson.title,
     course: lesson.unit.course.title,
+    subject: lesson.unit.course.subject,
+    unitTitle: lesson.unit.title,
+    unitDescription: lesson.unit.description,
+    summary: lesson.summary,
     content: lesson.content,
     quizTitle: lesson.quiz?.title,
-    practicePrompts: lesson.quiz?.questions.map((q) => q.prompt) ?? [],
+    practiceQuestions:
+      lesson.quiz?.questions.map((q) => ({
+        prompt: q.prompt,
+        explanation: q.explanation,
+      })) ?? [],
+    unitLessons: lesson.unit.lessons,
     href: `/learn/${lesson.id}`,
   };
 }
@@ -219,20 +244,47 @@ async function localTutor(question: string) {
   if (hits.length > 0) {
     const lesson = await getLesson(hits[0].lessonId);
     if ("content" in lesson && lesson.content) {
-      return [
-        `**${lesson.course} — ${lesson.title}**`,
-        "",
-        lesson.content,
-        "",
-        `📖 *Full lesson & interactive check quiz available at ${lesson.href}*`,
-      ].join("\n");
+      const parts: string[] = [];
+
+      parts.push(`# ${lesson.course}: ${lesson.title}`);
+      if (lesson.unitTitle) {
+        parts.push(`*Subject: ${lesson.subject} | Unit: ${lesson.unitTitle}*`);
+      }
+      if (lesson.summary) {
+        parts.push(`\n**Summary**: ${lesson.summary}\n`);
+      }
+
+      parts.push(`## Comprehensive Lesson Guide & Core Concepts`);
+      parts.push(lesson.content);
+
+      if (lesson.practiceQuestions && lesson.practiceQuestions.length > 0) {
+        parts.push(`\n## In-Depth Analysis & Worked Application Problems`);
+        for (const [idx, q] of lesson.practiceQuestions.entries()) {
+          parts.push(`### Problem ${idx + 1}: ${q.prompt}`);
+          parts.push(`**Step-by-Step Breakdown & Explanation**:\n${q.explanation}\n`);
+        }
+      }
+
+      if (lesson.unitLessons && lesson.unitLessons.length > 1) {
+        parts.push(`## Key Subtopics Covered in this Unit`);
+        for (const sibling of lesson.unitLessons) {
+          parts.push(`- **${sibling.title}**: ${sibling.summary}`);
+        }
+      }
+
+      parts.push(`\n---\n📖 *Open the full lesson, interactive diagrams & practice quiz at ${lesson.href}*`);
+      return parts.join("\n");
     }
   }
 
   return [
-    "I searched the academy catalog, but couldn't find a direct lesson for that topic.",
+    "I searched the academy curriculum, but couldn't find a direct lesson for that specific topic.",
     "",
-    "Try asking about a core high-school topic like **slope**, **linear equations**, **the quadratic formula**, **the unit circle**, **photosynthesis**, or **cell respiration**!",
+    "To explore in-depth lessons with step-by-step worked examples, try asking about:",
+    "- **Mathematics**: Linear equations, slope as rate of change, inequalities, quadratic formula, Pythagorean theorem, unit circle trigonometry",
+    "- **Sciences**: Photosynthesis, cellular respiration, Mendelian genetics, atomic models, Newton's laws of motion",
+    "- **Social Studies**: The Constitution & Bill of Rights, American Revolution, Industrial Revolution, World War I & II",
+    "- **Computer Science**: Python fundamentals, variables and conditionals, loops, functions, algorithms",
   ].join("\n");
 }
 
@@ -257,11 +309,14 @@ export async function runTutor(options: {
     return { reply: await localTutor(question), usedModel: false };
   }
 
-  const system = `You are Lumina, an agentic tutor for high-school students.
-Speak clearly. Prefer short paragraphs and worked examples.
-Do not dump the full answer to a quiz question immediately — coach first, then reveal.
-Use tools when you need catalog facts, lesson text, or a student's next step.
-You may discuss any high-school subject. If you are unsure, say so.
+  const system = `You are Lumina, an expert academy tutor for high-school students.
+Your goal is to provide thorough, in-depth, and well-structured explanations that deeply explore the topic and touch each specific component requested.
+Do not give shallow or brief one-paragraph answers. Instead:
+1. Intuitive Foundation: Explain the core concept in clear, relatable terms, highlighting why it works and why it matters.
+2. Step-by-Step Breakdown: Break down the topic into its distinct parts, mechanisms, mathematical definitions, or stages.
+3. Detailed Worked Examples: Walk through concrete, practical problems step by step, explaining the reasoning behind every calculation or logical transition.
+4. Pitfalls & Nuances: Point out common misconceptions, edge cases, and typical student mistakes.
+Use tools when you need catalog facts, lesson text, or curriculum context.
 Current catalog hint: ${catalogHint}`;
 
   const messages: ChatMessage[] = [
