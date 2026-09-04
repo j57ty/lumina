@@ -49,7 +49,7 @@ const tools = [
 
 async function searchCurriculum(query: string) {
   const q = query.trim();
-  const lessons = await prisma.lesson.findMany({
+  let lessons = await prisma.lesson.findMany({
     where: {
       OR: [
         { title: { contains: q, mode: "insensitive" } },
@@ -63,6 +63,36 @@ async function searchCurriculum(query: string) {
     take: 8,
     include: { unit: { include: { course: true } } },
   });
+
+  if (lessons.length === 0) {
+    const stopwords = new Set([
+      "teach", "me", "about", "what", "is", "explain", "how", "to", "the", "a",
+      "an", "for", "in", "like", "im", "i'm", "first", "time", "help", "with", "show",
+    ]);
+    const words = q
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !stopwords.has(w));
+
+    if (words.length > 0) {
+      lessons = await prisma.lesson.findMany({
+        where: {
+          OR: words.flatMap((w) => [
+            { title: { contains: w, mode: "insensitive" } },
+            { summary: { contains: w, mode: "insensitive" } },
+            { content: { contains: w, mode: "insensitive" } },
+            { unit: { title: { contains: w, mode: "insensitive" } } },
+            { unit: { course: { title: { contains: w, mode: "insensitive" } } } },
+            { unit: { course: { subject: { contains: w, mode: "insensitive" } } } },
+          ]),
+        },
+        take: 8,
+        include: { unit: { include: { course: true } } },
+      });
+    }
+  }
+
   return lessons.map((lesson) => ({
     lessonId: lesson.id,
     title: lesson.title,
@@ -184,26 +214,25 @@ async function runTool(name: string, rawArgs: string, userId: string) {
   return { error: `Unknown tool ${name}` };
 }
 
-async function localTutor(question: string, catalogHint: string) {
+async function localTutor(question: string) {
   const hits = await searchCurriculum(question);
-  let excerpt = "";
-  if (hits[0]) {
+  if (hits.length > 0) {
     const lesson = await getLesson(hits[0].lessonId);
     if ("content" in lesson && lesson.content) {
-      excerpt = `\nClosest lesson: ${lesson.course} — ${lesson.title}\n${String(lesson.content).slice(0, 900)}\nOpen it at ${lesson.href}`;
+      return [
+        `**${lesson.course} — ${lesson.title}**`,
+        "",
+        lesson.content,
+        "",
+        `📖 *Full lesson & interactive check quiz available at ${lesson.href}*`,
+      ].join("\n");
     }
   }
+
   return [
-    "Lumina tutor (catalog mode — add LLM_API_KEY for the full agent).",
-    catalogHint,
-    excerpt,
+    "I searched the academy catalog, but couldn't find a direct lesson for that topic.",
     "",
-    "How to work this:",
-    "1. Say which course it belongs to.",
-    "2. Write one sentence of what you already know.",
-    "3. Try one small step before asking for the final answer.",
-    "",
-    `Your question: ${question}`,
+    "Try asking about a core high-school topic like **slope**, **linear equations**, **the quadratic formula**, **the unit circle**, **photosynthesis**, or **cell respiration**!",
   ].join("\n");
 }
 
@@ -225,7 +254,7 @@ export async function runTutor(options: {
   const model = process.env.LLM_MODEL || "grok-4";
 
   if (!apiKey) {
-    return { reply: await localTutor(question, catalogHint), usedModel: false };
+    return { reply: await localTutor(question), usedModel: false };
   }
 
   const system = `You are Lumina, an agentic tutor for high-school students.
@@ -261,12 +290,12 @@ Current catalog hint: ${catalogHint}`;
       if (!response.ok) {
         const text = await response.text();
         console.error(`LLM error ${response.status}: ${text.slice(0, 400)}`);
-        return { reply: await localTutor(question, catalogHint), usedModel: false };
+        return { reply: await localTutor(question), usedModel: false };
       }
 
       const data = await response.json();
       const choice = data.choices?.[0]?.message;
-      if (!choice) return { reply: await localTutor(question, catalogHint), usedModel: false };
+      if (!choice) return { reply: await localTutor(question), usedModel: false };
 
     const toolCalls = choice.tool_calls as
       | { id: string; function: { name: string; arguments: string } }[]
@@ -303,6 +332,6 @@ Current catalog hint: ${catalogHint}`;
     };
   } catch (error) {
     console.error("LLM execution error:", error);
-    return { reply: await localTutor(question, catalogHint), usedModel: false };
+    return { reply: await localTutor(question), usedModel: false };
   }
 }
